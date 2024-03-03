@@ -21,13 +21,13 @@ bool isBetween(double currentValue, double min, double max);
 ELM327 myELM327;
 
 const uint64_t IMAGES[] = {
-  0xe7e7e77fffe7ff7f,
-  0xe7f7f7ffffefefe7,
-  0x38383838383e3c38,
-  0xffff071c70e7ff7e,
-  0x7fffe0ffffe0ff7f,
-  0x707070ffff777777,
-  0x7effe0ff7f07ffff
+  0xe7e7e77fffe7ff7f,  // R
+  0xe7f7f7ffffefefe7,  // N
+  0x38383838383e3c38,  // 1
+  0xffff071c70e7ff7e,  // 2
+  0x7fffe0ffffe0ff7f,  // 3
+  0x707070ffff777777,  // 4
+  0x7effe0ff7f07ffff   // 5
 };
 const int IMAGES_LEN = sizeof(IMAGES)/8;
 
