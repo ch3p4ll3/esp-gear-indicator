@@ -8,7 +8,7 @@ The project is developed using PlatformIO, an open-source ecosystem for IoT deve
 
 ## Features
 
-- Displays the current gear of the motorcycle on an OLED display.
+- Displays the current gear of the motorcycle on an matrix display.
 - Supports up to 5 gears (1 to 5) and a neutral indicator. (can easly be configured for >=6 gears)
 - Configurable gear ratios for different motorcycle models.
 
