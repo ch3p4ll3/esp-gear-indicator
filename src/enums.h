@@ -8,8 +8,3 @@ enum Gear {
   FIFTH,
   SIXTH
 };
-
-enum PID_STATES {
-    ENG_RPM,
-    SPEED
-};

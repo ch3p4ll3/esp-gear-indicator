@@ -1,24 +1,27 @@
-#include "BluetoothSerial.h"
-#include "ELMduino.h"
 #include "./enums.h"
 #include "LedControl.h"
 #include "./config.h"
 
+#include <CAN.h> // the OBD2 library depends on the CAN library
+#include <OBD2.h>
 
-BluetoothSerial SerialBT;
-#define ELM_PORT   SerialBT
-#define DEBUG_PORT Serial
+#define DEBUG
 
-
-const bool DEBUG = false;
-const int  TIMEOUT = 2000;
+#ifdef DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#endif
 
 void displayImage(uint64_t image);
 void getObdData();
 void getCurrentGear();
+void processPid(int pid);
 bool isBetween(double currentValue, double min, double max);
 
-ELM327 myELM327;
+uint8_t pids[] = {ENGINE_RPM, VEHICLE_SPEED};
 
 const uint64_t IMAGES[] = {
   0xe7e7e77fffe7ff7f,  // R
@@ -35,11 +38,10 @@ const int IMAGES_LEN = sizeof(IMAGES)/8;
 LedControl display = LedControl(DATA_PIN, CLK_PIN, CS_PIN, 1);
 
 Gear current_gear = NEUTRAL;
-PID_STATES obd_state = ENG_RPM;
 
 float rpm = 0;
 float kph = 0;
-float gear_rateo = 0;
+float gear_ratio = 0;
 
 
 void setup()
@@ -51,37 +53,50 @@ void setup()
 
   display.clearDisplay(0);
   display.shutdown(0, false);
-  display.setIntensity(0, 10);
+  display.setIntensity(0, 15);
 
-  DEBUG_PORT.begin(115200);
-  //SerialBT.setPin("1234");
-  ELM_PORT.begin("ArduHUD", true);
-  
-  if (!ELM_PORT.connect(address))
-  {
-    DEBUG_PORT.println("Couldn't connect to OBD scanner - Phase 1");
-    while(1);
+  Serial.begin(115200);
+  while (!Serial);
+
+  DEBUG_PRINTLN(F("OBD2 data printer"));
+
+  while (true) {
+    DEBUG_PRINT(F("Attempting to connect to OBD2 CAN bus ... "));
+
+    if (!OBD2.begin()) {
+      DEBUG_PRINTLN(F("failed!"));
+
+      delay(1000);
+    } else {
+      DEBUG_PRINTLN(F("success"));
+      break;
+    }
   }
 
-  if (!myELM327.begin(ELM_PORT, DEBUG, TIMEOUT))
-  {
-    Serial.println("Couldn't connect to OBD scanner - Phase 2");
-    while (1);
-  }
-
-  Serial.println("Connected to ELM327");
+  DEBUG_PRINTLN();
+  DEBUG_PRINT("VIN = ");
+  DEBUG_PRINTLN(OBD2.vinRead());
+  DEBUG_PRINT("ECU Name = ");
+  DEBUG_PRINTLN(OBD2.ecuNameRead());
+  DEBUG_PRINTLN();
 }
 
 void loop()
 {
-  getObdData();
+  for (int pid = 0; pid < sizeof(pids); pid++) {
+    processPid(pids[pid]);
+  }
+
+  // wait 5 seconds before next run
+  delay(100);
+  // getObdData();
 
   if (rpm > 0 && kph > 0){
-    gear_rateo = (kph / rpm) * 10000;
-    Serial.println(gear_rateo);
+    gear_ratio = (kph / rpm) * 10000;
+    DEBUG_PRINTLN(gear_ratio);
   }
   else if (rpm <= RPM_MIN && kph == 0){
-    gear_rateo = 0;
+    gear_ratio = 0;
   }
 
   getCurrentGear();
@@ -93,62 +108,101 @@ bool isBetween(float currentValue, float min, float max){
   return (currentValue >=min) && (currentValue <= max);
 }
 
-void getObdData(){
-  switch (obd_state)
-  {
-    case ENG_RPM:
-    {
-      rpm = myELM327.rpm();
-      
-      if (myELM327.nb_rx_state == ELM_SUCCESS)
-      {
-        obd_state = SPEED;
+void processPid(int pid) {
+  if (!OBD2.pidSupported(pid)) {
+    // PID not supported, continue to next one ...
+    return;
+  }
+
+  // print PID name
+  DEBUG_PRINT(OBD2.pidName(pid));
+  DEBUG_PRINT(F(" = "));
+
+  if (OBD2.pidValueRaw(pid)) {
+    // read the raw PID value
+    unsigned long pidRawValue = OBD2.pidReadRaw(pid);
+
+    DEBUG_PRINT(F("0x"));
+    DEBUG_PRINT(pidRawValue);
+  } else {
+    // read the PID value
+    float pidValue = OBD2.pidRead(pid);
+
+    if (isnan(pidValue)) {
+      DEBUG_PRINT("error");
+    } else {
+      // print value with units
+      if (pid == ENGINE_RPM){
+        rpm = pidValue;
       }
-      else if (myELM327.nb_rx_state != ELM_GETTING_MSG)
-      {
-        //myELM327.printError();
-        obd_state = SPEED;
+      else {
+        kph = pidValue;
       }
-      
-      break;
-    }
-    
-    case SPEED:
-    {
-      kph = myELM327.kph();
-      
-      if (myELM327.nb_rx_state == ELM_SUCCESS)
-      {
-        obd_state = ENG_RPM;
-      }
-      else if (myELM327.nb_rx_state != ELM_GETTING_MSG)
-      {
-        //myELM327.printError();
-        obd_state = ENG_RPM;
-      }
-      
-      break;
+
+      DEBUG_PRINT(pidValue);
+      DEBUG_PRINT(F(" "));
+      DEBUG_PRINT(OBD2.pidUnits(pid));
     }
   }
 }
 
+
+void getObdData(){
+  // switch (obd_state)
+  // {
+  //   case ENG_RPM:
+  //   {
+  //     rpm = myELM327.rpm();
+      
+  //     if (myELM327.nb_rx_state == ELM_SUCCESS)
+  //     {
+  //       obd_state = SPEED;
+  //     }
+  //     else if (myELM327.nb_rx_state != ELM_GETTING_MSG)
+  //     {
+  //       //myELM327.printError();
+  //       obd_state = SPEED;
+  //     }
+      
+  //     break;
+  //   }
+    
+  //   case SPEED:
+  //   {
+  //     kph = myELM327.kph();
+      
+  //     if (myELM327.nb_rx_state == ELM_SUCCESS)
+  //     {
+  //       obd_state = ENG_RPM;
+  //     }
+  //     else if (myELM327.nb_rx_state != ELM_GETTING_MSG)
+  //     {
+  //       //myELM327.printError();
+  //       obd_state = ENG_RPM;
+  //     }
+      
+  //     break;
+  //   }
+  // }
+}
+
 void getCurrentGear(){
-  if (gear_rateo == 0){
+  if (gear_ratio == 0){
     current_gear = NEUTRAL;
   }
-  if (isBetween(gear_rateo, FIRST_MIN, FIRST_MAX)){
+  if (isBetween(gear_ratio, FIRST_MIN, FIRST_MAX)){
     current_gear = FIRST;
   }
-  if (isBetween(gear_rateo, SECOND_MIN, SECOND_MAX)){
+  if (isBetween(gear_ratio, SECOND_MIN, SECOND_MAX)){
     current_gear = SECOND;
   }
-  if (isBetween(gear_rateo, THIRD_MIN, THIRD_MAX)){
+  if (isBetween(gear_ratio, THIRD_MIN, THIRD_MAX)){
     current_gear = THIRD;
   }
-  if (isBetween(gear_rateo, FOURTH_MIN, FOURTH_MAX)){
+  if (isBetween(gear_ratio, FOURTH_MIN, FOURTH_MAX)){
     current_gear = FOURTH;
   }
-  if (isBetween(gear_rateo, FIFTH_MIN, FIFTH_MAX)){
+  if (isBetween(gear_ratio, FIFTH_MIN, FIFTH_MAX)){
     current_gear = FIFTH;
   }
 }
