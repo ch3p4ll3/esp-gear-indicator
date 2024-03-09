@@ -1,0 +1,6 @@
+[submodule "lib/arduino-CAN"]
+	path = lib/arduino-CAN
+	url = https://github.com/ch3p4ll3/arduino-CAN.git
+[submodule "lib/arduino-OBD2"]
+	path = lib/arduino-OBD2
+	url = https://github.com/ch3p4ll3/arduino-OBD2.git
