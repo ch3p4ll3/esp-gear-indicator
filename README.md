@@ -30,6 +30,8 @@ You can also use other pins by editing the pins from the config.h file
 
 ## Installation
 - Clone the repository: `git clone https://github.com/ch3p4ll3/esp-gear-indicator.git`
+- Init the submodules: `git submodule init`
+- Update the submodules: `git submodule update`
 
 - Open the project in PlatformIO IDE or Visual Studio Code with PlatformIO extension installed.
 

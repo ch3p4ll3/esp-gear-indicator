@@ -16,7 +16,6 @@
 #endif
 
 void displayImage(uint64_t image);
-void getObdData();
 void getCurrentGear();
 void processPid(int pid);
 bool isBetween(double currentValue, double min, double max);
@@ -63,7 +62,7 @@ void setup()
   while (true) {
     DEBUG_PRINT(F("Attempting to connect to OBD2 CAN bus ... "));
 
-    if (!OBD2.begin()) {
+    if (!OBD2.begin(1000E3)) {
       DEBUG_PRINTLN(F("failed!"));
 
       delay(1000);
@@ -144,46 +143,6 @@ void processPid(int pid) {
       DEBUG_PRINT(OBD2.pidUnits(pid));
     }
   }
-}
-
-
-void getObdData(){
-  // switch (obd_state)
-  // {
-  //   case ENG_RPM:
-  //   {
-  //     rpm = myELM327.rpm();
-      
-  //     if (myELM327.nb_rx_state == ELM_SUCCESS)
-  //     {
-  //       obd_state = SPEED;
-  //     }
-  //     else if (myELM327.nb_rx_state != ELM_GETTING_MSG)
-  //     {
-  //       //myELM327.printError();
-  //       obd_state = SPEED;
-  //     }
-      
-  //     break;
-  //   }
-    
-  //   case SPEED:
-  //   {
-  //     kph = myELM327.kph();
-      
-  //     if (myELM327.nb_rx_state == ELM_SUCCESS)
-  //     {
-  //       obd_state = ENG_RPM;
-  //     }
-  //     else if (myELM327.nb_rx_state != ELM_GETTING_MSG)
-  //     {
-  //       //myELM327.printError();
-  //       obd_state = ENG_RPM;
-  //     }
-      
-  //     break;
-  //   }
-  // }
 }
 
 void getCurrentGear(){
