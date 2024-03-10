@@ -92,13 +92,13 @@ void loop()
     gear_ratio = (kph / rpm) * 10000;
     DEBUG_PRINTLN(gear_ratio);
   }
-  else if (rpm <= RPM_MIN && kph == 0){
+  else if (rpm <= RPM_MIN && kph == 0){  // or clutch is pressed
     gear_ratio = 0;
   }
 
   getCurrentGear();
 
-  if (rpm >= LED_RPM){
+  if (rpm >= LED_RPM && current_gear < Gear::FIFTH){
     digitalWrite(LED_PIN, HIGH);
   }
   else{
@@ -164,22 +164,22 @@ void processPid(int pid) {
 
 void getCurrentGear(){
   if (gear_ratio == 0){
-    current_gear = NEUTRAL;
+    current_gear = Gear::NEUTRAL;
   }
   if (isBetween(gear_ratio, FIRST_MIN, FIRST_MAX)){
-    current_gear = FIRST;
+    current_gear = Gear::FIRST;
   }
   if (isBetween(gear_ratio, SECOND_MIN, SECOND_MAX)){
-    current_gear = SECOND;
+    current_gear = Gear::SECOND;
   }
   if (isBetween(gear_ratio, THIRD_MIN, THIRD_MAX)){
-    current_gear = THIRD;
+    current_gear = Gear::THIRD;
   }
   if (isBetween(gear_ratio, FOURTH_MIN, FOURTH_MAX)){
-    current_gear = FOURTH;
+    current_gear = Gear::FOURTH;
   }
   if (isBetween(gear_ratio, FIFTH_MIN, FIFTH_MAX)){
-    current_gear = FIFTH;
+    current_gear = Gear::FIFTH;
   }
 }
 

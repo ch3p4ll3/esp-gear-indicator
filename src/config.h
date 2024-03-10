@@ -8,7 +8,7 @@
 
 // LED
 #define LED_PIN 2
-#define LED_RPM 2500
+#define LED_RPM 2000
 
 // set gears min and max ratio
 #define FIRST_MIN 1
