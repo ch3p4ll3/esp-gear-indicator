@@ -1,18 +1,16 @@
 #include "./enums.h"
-#include "LedControl.h"
 #include "./config.h"
 
 #include <CAN.h> // the OBD2 library depends on the CAN library
 #include <OBD2.h>
-
-#define DEBUG
+#include "LedControl.h"
 
 #ifdef DEBUG
-#define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTLN(x) Serial.println(x)
+  #define DEBUG_PRINT(x) Serial.print(x)
+  #define DEBUG_PRINTLN(x) Serial.println(x)
 #else
-#define DEBUG_PRINT(x)
-#define DEBUG_PRINTLN(x)
+  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINTLN(x)
 #endif
 
 void displayImage(uint64_t image);
@@ -29,7 +27,8 @@ const uint64_t IMAGES[] = {
   0xffff071c70e7ff7e,  // 2
   0x7fffe0ffffe0ff7f,  // 3
   0x707070ffff777777,  // 4
-  0x7effe0ff7f07ffff   // 5
+  0x7effe0ff7f07ffff,  // 5
+  0x7effe7ff7f07ff7e   // 6
 };
 const int IMAGES_LEN = sizeof(IMAGES)/8;
 
@@ -37,6 +36,7 @@ const int IMAGES_LEN = sizeof(IMAGES)/8;
 LedControl display = LedControl(DATA_PIN, CLK_PIN, CS_PIN, 1);
 
 Gear current_gear = NEUTRAL;
+Gear last_gear;
 
 float rpm = 0;
 float kph = 0;
@@ -45,19 +45,21 @@ float gear_ratio = 0;
 
 void setup()
 {
-#if LED_BUILTIN
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-#endif
+  #if LED_BUILTIN
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+  #endif
+
+  pinMode(LED_PIN, OUTPUT);
 
   display.clearDisplay(0);
   display.shutdown(0, false);
-  display.setIntensity(0, 15);
+  display.setIntensity(0, 10);
 
-  Serial.begin(115200);
-  while (!Serial);
-
-  DEBUG_PRINTLN(F("OBD2 data printer"));
+  #ifdef DEBUG
+    Serial.begin(115200);
+    while (!Serial);
+  #endif
 
   while (true) {
     DEBUG_PRINT(F("Attempting to connect to OBD2 CAN bus ... "));
@@ -86,10 +88,6 @@ void loop()
     processPid(pids[pid]);
   }
 
-  // wait 5 seconds before next run
-  delay(100);
-  // getObdData();
-
   if (rpm > 0 && kph > 0){
     gear_ratio = (kph / rpm) * 10000;
     DEBUG_PRINTLN(gear_ratio);
@@ -100,7 +98,19 @@ void loop()
 
   getCurrentGear();
 
-  displayImage(IMAGES[(int)current_gear]);
+  if (rpm >= LED_RPM){
+    digitalWrite(LED_PIN, HIGH);
+  }
+  else{
+    digitalWrite(LED_PIN, LOW);
+  }
+
+  if (last_gear != current_gear){
+    displayImage(IMAGES[(int)current_gear]);
+    last_gear = current_gear;
+  }
+
+  delay(100);
 }
 
 bool isBetween(float currentValue, float min, float max){
@@ -129,18 +139,25 @@ void processPid(int pid) {
 
     if (isnan(pidValue)) {
       DEBUG_PRINT("error");
-    } else {
-      // print value with units
-      if (pid == ENGINE_RPM){
+    }
+    else {
+      switch (pid)
+      {
+      case ENGINE_RPM:
         rpm = pidValue;
-      }
-      else {
+        break;
+
+      case VEHICLE_SPEED:
         kph = pidValue;
+        break;
+      
+      default:
+        break;
       }
 
       DEBUG_PRINT(pidValue);
       DEBUG_PRINT(F(" "));
-      DEBUG_PRINT(OBD2.pidUnits(pid));
+      DEBUG_PRINTLN(OBD2.pidUnits(pid));
     }
   }
 }
